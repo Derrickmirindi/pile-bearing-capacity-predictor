@@ -10,14 +10,19 @@ body { background:linear-gradient(180deg,#f7f9fc 0%,#eef2f7 100%); min-height:10
 .container { max-width:900px; margin:0 auto; padding:2rem 1.5rem 4rem; }
 .app-title { font-size:2.6rem; font-weight:700; color:#0b3d91; text-align:center; margin-bottom:0.2rem; }
 .app-credit { font-size:1.05rem; font-style:italic; color:#444; text-align:center; margin-bottom:0.4rem; }
-.app-sub { font-size:1.1rem; color:#333; text-align:center; margin-bottom:1.6rem; }
-.grid { display:grid; grid-template-columns:1fr 1fr; gap:1.2rem 2rem; margin-bottom:1.8rem; }
+.app-sub { font-size:1.1rem; color:#333; text-align:center; margin-bottom:1.2rem; }
+.status { text-align:center; font-size:0.95rem; color:#0b3d91; margin-bottom:1.4rem; }
+.grid { display:grid; grid-template-columns:1fr 1fr; gap:1.2rem 2rem; margin-bottom:0.6rem; }
 .field label { display:block; font-size:1.25rem; font-weight:600; margin-bottom:0.4rem; }
 .field input { width:100%; box-sizing:border-box; padding:0.55rem 0.7rem; font-size:1.05rem; font-family:inherit; border:1px solid #c4ccd8; border-radius:6px; }
-.btn-wrap { text-align:center; margin-bottom:1.6rem; }
+.field input:invalid { border-color:#d33; }
+.hint { font-size:0.85rem; color:#666; margin-top:0.25rem; }
+.btn-wrap { text-align:center; margin:1.4rem 0; }
 button { background:#0b3d91; color:#fff; border:none; border-radius:8px; padding:0.6rem 2rem; font-size:1.15rem; font-weight:600; font-family:inherit; cursor:pointer; }
 button:hover { background:#14509e; }
+button:disabled { background:#9aa7bd; cursor:not-allowed; }
 .result { text-align:center; font-size:1.6rem; font-weight:600; color:#0f5132; background:#d1e7dd; border:1px solid #badbcc; border-radius:8px; padding:1rem; margin-bottom:1.8rem; display:none; }
+.warn { color:#842029; background:#f8d7da; border-color:#f5c2c7; }
 .metrics-title { font-size:1.5rem; font-weight:700; color:#0b3d91; margin-bottom:0.6rem; }
 table { border-collapse:collapse; width:100%; font-size:1.05rem; }
 th, td { border:1px solid #d0d7e2; padding:0.5rem 0.8rem; text-align:left; }
@@ -28,103 +33,187 @@ th { background:#eef2f7; }
 <body>
 <div class="container">
 <div class="app-title">Pile Bearing Capacity Predictor</div>
-<div class="app-credit">Based on machine learning model, developed by Derrick Mirindi &amp; David Sinkhonde</div>
+<div class="app-credit">Based on gradient-boosted trees model, developed by Derrick Mirindi &amp; David Sinkhonde</div>
 <div class="app-sub">Enter the pile parameters below to predict the bearing capacity.</div>
+<div class="status" id="status">Training model...</div>
 <div class="grid">
-<div class="field"><label for="diameter">Pile Diameter (mm)</label><input type="number" id="diameter" step="any" /></div>
-<div class="field"><label for="length">Pile Length (m)</label><input type="number" id="length" step="any" /></div>
-<div class="field"><label for="ram_weight">Ram Weight (kN)</label><input type="number" id="ram_weight" step="any" /></div>
-<div class="field"><label for="drop_height">Drop Height (m)</label><input type="number" id="drop_height" step="any" /></div>
+<div class="field"><label for="diameter">Pile Diameter (mm)</label><input type="number" id="diameter" step="any" /><div class="hint" id="hint_diameter"></div></div>
+<div class="field"><label for="length">Pile Length (m)</label><input type="number" id="length" step="any" /><div class="hint" id="hint_length"></div></div>
+<div class="field"><label for="ram_weight">Ram Weight (kN)</label><input type="number" id="ram_weight" step="any" /><div class="hint" id="hint_ram_weight"></div></div>
+<div class="field"><label for="drop_height">Drop Height (m)</label><input type="number" id="drop_height" step="any" /><div class="hint" id="hint_drop_height"></div></div>
 </div>
-<div class="btn-wrap"><button id="predictBtn">Predict</button></div>
+<div class="btn-wrap"><button id="predictBtn" disabled>Predict</button></div>
 <div class="result" id="result"></div>
 <div class="metrics-title">Model Performance</div>
 <table>
 <tr><th>Metric</th><th>Value</th></tr>
-<tr><td>R2</td><td>0.9771</td></tr>
-<tr><td>R</td><td>0.9885</td></tr>
-<tr><td>MAPE</td><td>10.83</td></tr>
-<tr><td>RMSE</td><td>131.56</td></tr>
-<tr><td>MAE</td><td>94.94</td></tr>
+<tr><td>R2 (in-browser, hold-out)</td><td id="m_r2">-</td></tr>
+<tr><td>R (in-browser, hold-out)</td><td id="m_r">-</td></tr>
+<tr><td>MAPE (%)</td><td id="m_mape">-</td></tr>
+<tr><td>RMSE (kN)</td><td id="m_rmse">-</td></tr>
+<tr><td>MAE (kN)</td><td id="m_mae">-</td></tr>
 </table>
 </div>
 <script>
-var DATA_CSV = "diameter,length,ram_weight,drop_height,pbc\n282,8,12,1,555\n282,8,12,1,623\n282,3,12,1,536\n282,3,12,1,850\n282,3,12,1,648\n282,8,12,1,291\n282,11,13,1.5,1572\n282,11,13,1.5,1450\n282,13,13,1.5,854\n282,14,13,1.5,818\n282,14,13,1.5,980\n282,13,13,1.5,1063\n395,28,35,1,1341\n480,29,45,1,1409\n480,29,45,1,2200\n480,29,45,1,1650\n226,10,13,1,1058\n226,7,13,1,942\n226,11,13,1,774\n226,8,13,1,749\n226,8,13,1,780\n226,8,13,1,588\n226,8,13,1,707\n451,12,90,0.4,3530\n306,17,90,0.3,2790\n306,15,90,0.4,2900\n451,23,90,0.4,3430\n451,23,90,0.4,3460\n226,17,25,0.4,780\n226,17,25,0.4,770\n169.63,3.4,12,0.5,410\n199.2,13.31,23.1,1.34,1284.1\n189.49,10.4,13,1,884\n189.49,8.6,20,1,1480\n189.49,7.6,18,1,870\n169.63,9.7,13,1,789\n169.63,15.5,13,1,910\n211.1,10.3,13,1,817\n211.1,9.3,13,1,970\n189.49,4.6,13,1,829\n189.49,5.2,13,1,410\n189.49,8.1,13,1,625\n189.49,7.6,13,1,567\n189.49,15,13,1,754\n169.63,15,13,1,1102\n169.63,11.2,13,1,950\n225.68,33.6,53,1.5,2750\n252.31,18.8,50,1.5,2522\n252.31,18.6,50,1.5,2459\n169.63,11,13,1,792\n169.63,10.9,13,1,819\n189.49,6.65,13,1,500\n189.49,6.9,13,1,700\n189.49,8,13,1,751\n189.49,8,13,1,568\n189.49,16.9,25,1,1141\n239.63,32,63,4,3449\n239.63,15.3,63,4,3227\n239.63,28.3,63,4,3692\n239.37,33.2,63,3,2680\n189.49,19.7,15,1,1419\n189.49,10.5,15,1,1150\n189.49,11.2,15,1,898\n169.63,11.4,13,1,774\n169.63,7.9,13,1,707\n189.49,9,20,0.5,1040\n195.44,8.2,18,1,1200\n189.49,9.5,15,0.7,980\n189.49,8.1,12,1,623\n189.49,3.4,12,1,648\n211.1,10,13,1,811\n211.1,12.7,13,1,983\n189.49,6.9,13,1,505\n169.63,11.4,13,1,774";
+var DATA_CSV = "diameter,length,ram_weight,drop_height,pbc\n282,8,12,1,555\n282,8,12,1,623\n282,3,12,1,536\n282,3,12,1,850\n282,3,12,1,648\n282,8,12,1,291\n282,11,13,1.5,1572\n282,11,13,1.5,1450\n282,13,13,1.5,854\n282,14,13,1.5,818\n282,14,13,1.5,980\n282,13,13,1.5,1063\n395,28,35,1,1341\n480,29,45,1,1409\n480,29,45,1,2200\n480,29,45,1,1650\n226,10,13,1,1058\n226,7,13,1,942\n226,11,13,1,774\n226,8,13,1,749\n226,8,13,1,780\n226,8,13,1,588\n226,8,13,1,707\n451,12,90,0.4,3530\n306,17,90,0.3,2790\n306,15,90,0.4,2900\n451,23,90,0.4,3430\n451,23,90,0.4,3460\n226,17,25,0.4,780\n226,17,25,0.4,770\n169.63,3.4,12,0.5,410\n199.2,13.31,23.1,1.34,1284.1\n189.49,10.4,13,1,884\n189.49,8.6,20,1,1480\n189.49,7.6,18,1,870\n169.63,9.7,13,1,789\n169.63,15.5,13,1,910\n211.1,10.3,13,1,817\n211.1,9.3,13,1,970\n189.49,4.6,13,1,829\n189.49,5.2,13,1,410\n189.49,8.1,13,1,625\n189.49,7.6,13,1,567\n189.49,15,13,1,754\n169.63,15,13,1,1102\n169.63,11.2,13,1,950\n225.68,33.6,53,1.5,2750\n252.31,18.8,50,1.5,2522\n252.31,18.6,50,1.5,2459\n169.63,11,13,1,792\n169.63,10.9,13,1,819\n189.49,6.65,13,1,500\n189.49,6.9,13,1,700\n189.49,8,13,1,751\n189.49,8,13,1,568\n189.49,16.9,25,1,1141\n239.63,32,63,4,3449\n239.63,15.3,63,4,3227\n239.63,28.3,63,4,3692\n239.37,33.2,63,3,2680\n189.49,19.7,15,1,1419\n189.49,10.5,15,1,1150\n189.49,11.2,15,1,898\n169.63,11.4,13,1,774\n169.63,7.9,13,1,707\n189.49,9,20,0.5,1040\n195.44,8.2,18,1,1200\n189.49,9.5,15,0.7,980\n189.49,8.1,12,1,623\n189.49,3.4,12,1,648\n211.1,10,13,1,811\n211.1,12.7,13,1,983\n189.49,6.9,13,1,505\n189.49,8,13,1,568\n226,10,13,1,318\n226,9,13,1,858\n282,23,13,1,560\n282,23,13,1,427\n282,22,13,1,979\n282,23,13,1,568\n282,22,13,1,533\n282,23,13,1,586\n282,22,13,1,934\n282,22,13,1,749\n282,22,13,1,753\n282,23,13,1,810\n282,15,20,1,669\n282,9,20,1,1480\n282,10,20,1,1225\n400,35,25,1,829\n400,35,25,1,605\n300,35,25,1,772\n300,35,25,1,781\n350,10,13,1,500\n350,10,13,1,452\n350,9,13,1,585\n350,10,13,1,603\n350,10,13,1,811\n350,10,13,1,770\n350,10,13,1,748\n226,11,13,1,363\n282,8,18,1,870\n282,5,18,1,1172\n226,10,13,1,537\n226,16,13,1,789\n226,16,13,1,910\n451,24,45,1,1849\n451,24,45,1,1230\n451,24,45,1,1761\n451,24,45,1,2680\n451,24,45,1,1770\n451,24,45,1,1663\n350,13,13,1,660\n350,12,13,1,790\n350,10,13,1,648\n350,10,13,1,817\n350,10,13,1,553\n350,9,13,1,970\n350,13,13,1,806\n350,13,13,1,983\n451,17,13,1,1149\n451,17,13,1,862\n300,26,25,1,1330\n300,27,25,1,997\n300,26,25,1,1106\n282,5,13,1,829\n282,12,13,1,956\n282,7,13,1,390\n282,5,13,1,410\n282,4,13,1,1300\n282,5,13,1,1537\n282,5,13,1,486\n282,6,13,1,378\n282,8,13,1,625\n282,8,13,1,567\n282,11,13,1,754\n282,8,13,1,568\n300,17,25,1,949\n300,17,25,1,469\n282,29,13,1,718\n282,29,13,1,694\n282,29,13,1,642\n226,15,13,1,1102\n226,11,13,1,950\n400,34,53,1.5,1650\n400,34,53,1.5,2750\n226,17,13,1,1008\n226,17,13,1,884\n226,17,13,1,438\n450,33,35,1,1370\n450,31,35,1,1501\n450,33,35,1,1282\n226,21,12,1,389\n226,11,13,1,792\n226,11,13,1,819";
 
 function parseData(csv){
 var lines = csv.trim().split("\n");
 var rows = [];
 for (var i=1;i<lines.length;i++){
 var p = lines[i].split(",").map(Number);
-rows.push({x:[p[0],p[1],p[2],p[3]], y:p[4]});
+if (p.length===5 && p.every(function(v){return !isNaN(v);})) rows.push({x:[p[0],p[1],p[2],p[3]], y:p[4]});
 }
 return rows;
 }
 
-var DATA = parseData(DATA_CSV);
+var ALL = parseData(DATA_CSV);
 var NF = 4;
-var MEAN = [0,0,0,0];
-var STD = [1,1,1,1];
-
-function computeStats(){
+var IDS = ["diameter","length","ram_weight","drop_height"];
+var MINS = [Infinity,Infinity,Infinity,Infinity];
+var MAXS = [-Infinity,-Infinity,-Infinity,-Infinity];
+for (var i=0;i<ALL.length;i++){
 for (var j=0;j<NF;j++){
-var s=0;
-for (var i=0;i<DATA.length;i++) s+=DATA[i].x[j];
-MEAN[j]=s/DATA.length;
-}
-for (var j=0;j<NF;j++){
-var v=0;
-for (var i=0;i<DATA.length;i++){ var d=DATA[i].x[j]-MEAN[j]; v+=d*d; }
-STD[j]=Math.sqrt(v/DATA.length) || 1;
+if (ALL[i].x[j]<MINS[j]) MINS[j]=ALL[i].x[j];
+if (ALL[i].x[j]>MAXS[j]) MAXS[j]=ALL[i].x[j];
 }
 }
-computeStats();
 
-function scale(x){
-var out=[];
-for (var j=0;j<NF;j++) out.push((x[j]-MEAN[j])/STD[j]);
-return out;
+function buildTree(rows, feats, target, depth, maxDepth, minLeaf){
+function mean(a){ var s=0; for(var i=0;i<a.length;i++) s+=a[i]; return s/a.length; }
+var ys = rows.map(function(r){return target[r];});
+var node = { leaf:true, value:mean(ys) };
+if (depth>=maxDepth || rows.length<2*minLeaf) return node;
+var bestErr=Infinity, bestF=-1, bestT=0, bestL=null, bestR=null;
+var baseMean=node.value;
+for (var f=0; f<NF; f++){
+var vals = rows.map(function(r){return feats[r][f];}).slice().sort(function(a,b){return a-b;});
+for (var vi=0; vi<vals.length-1; vi++){
+var thr=(vals[vi]+vals[vi+1])/2;
+var L=[],R=[];
+for (var k=0;k<rows.length;k++){ if (feats[rows[k]][f]<=thr) L.push(rows[k]); else R.push(rows[k]); }
+if (L.length<minLeaf || R.length<minLeaf) continue;
+var lm=mean(L.map(function(r){return target[r];}));
+var rm=mean(R.map(function(r){return target[r];}));
+var err=0;
+for (var k=0;k<L.length;k++){ var d=target[L[k]]-lm; err+=d*d; }
+for (var k=0;k<R.length;k++){ var d=target[R[k]]-rm; err+=d*d; }
+if (err<bestErr){ bestErr=err; bestF=f; bestT=thr; bestL=L; bestR=R; }
+}
+}
+if (bestF===-1) return node;
+return { leaf:false, feature:bestF, thr:bestT,
+left:buildTree(bestL,feats,target,depth+1,maxDepth,minLeaf),
+right:buildTree(bestR,feats,target,depth+1,maxDepth,minLeaf) };
+}
+
+function treePredict(node, x){
+while(!node.leaf){ node = (x[node.feature]<=node.thr)? node.left : node.right; }
+return node.value;
+}
+
+var MODEL = { base:0, trees:[], lr:0.08 };
+function trainGBT(train){
+var feats = train.map(function(r){return r.x;});
+var y = train.map(function(r){return r.y;});
+var base=0; for(var i=0;i<y.length;i++) base+=y[i]; base/=y.length;
+MODEL.base=base;
+MODEL.trees=[];
+var pred = y.map(function(){return base;});
+var N_TREES=120, MAX_DEPTH=4, MIN_LEAF=3;
+for (var t=0;t<N_TREES;t++){
+var resid=[]; var idx=[];
+for (var i=0;i<y.length;i++){ resid.push(y[i]-pred[i]); idx.push(i); }
+var tree=buildTree(idx, feats, resid, 0, MAX_DEPTH, MIN_LEAF);
+MODEL.trees.push(tree);
+for (var i=0;i<y.length;i++){ pred[i]+=MODEL.lr*treePredict(tree, feats[i]); }
+}
 }
 
 function predict(x){
-var q = scale(x);
-var dists = [];
-for (var i=0;i<DATA.length;i++){
-var s = scale(DATA[i].x);
-var d=0;
-for (var j=0;j<NF;j++){ var diff=q[j]-s[j]; d+=diff*diff; }
-dists.push({d:Math.sqrt(d), y:DATA[i].y});
-}
-dists.sort(function(a,b){return a.d-b.d;});
-var k=Math.min(7, dists.length);
-var num=0, den=0;
-for (var i=0;i<k;i++){
-var w = 1/(dists[i].d + 1e-6);
-num += w*dists[i].y;
-den += w;
-}
-return num/den;
+var p=MODEL.base;
+for (var t=0;t<MODEL.trees.length;t++){ p+=MODEL.lr*treePredict(MODEL.trees[t], x); }
+return p;
 }
 
-function meanFeature(j){ return MEAN[j]; }
+function shuffle(a, seed){
+var s=seed||12345;
+function rnd(){ s=(s*1103515245+12345)&0x7fffffff; return s/0x7fffffff; }
+var arr=a.slice();
+for (var i=arr.length-1;i>0;i--){ var j=Math.floor(rnd()*(i+1)); var tmp=arr[i]; arr[i]=arr[j]; arr[j]=tmp; }
+return arr;
+}
 
-var ids=["diameter","length","ram_weight","drop_height"];
+function evaluate(test){
+var n=test.length, sy=0;
+for (var i=0;i<n;i++) sy+=test[i].y;
+var my=sy/n;
+var ssRes=0, ssTot=0, absErr=0, sqErr=0, mape=0;
+for (var i=0;i<n;i++){
+var p=predict(test[i].x);
+var e=test[i].y-p;
+ssRes+=e*e;
+ssTot+=(test[i].y-my)*(test[i].y-my);
+absErr+=Math.abs(e);
+sqErr+=e*e;
+if (test[i].y!==0) mape+=Math.abs(e/test[i].y);
+}
+var r2=1-ssRes/ssTot;
+return { r2:r2, r:Math.sqrt(Math.max(0,r2)), mae:absErr/n, rmse:Math.sqrt(sqErr/n), mape:100*mape/n };
+}
+
+function runTraining(){
+var data=shuffle(ALL, 42);
+var cut=Math.floor(data.length*0.8);
+var train=data.slice(0,cut);
+var test=data.slice(cut);
+trainGBT(train);
+var m=evaluate(test);
+document.getElementById("m_r2").textContent=m.r2.toFixed(4);
+document.getElementById("m_r").textContent=m.r.toFixed(4);
+document.getElementById("m_mape").textContent=m.mape.toFixed(2);
+document.getElementById("m_rmse").textContent=m.rmse.toFixed(2);
+document.getElementById("m_mae").textContent=m.mae.toFixed(2);
+trainGBT(ALL);
+var st=document.getElementById("status");
+st.textContent="Model trained on "+ALL.length+" records ("+MODEL.trees.length+" boosted trees). Ready.";
+document.getElementById("predictBtn").disabled=false;
+}
+
+function round2(v){ return Math.round(v*100)/100; }
+
 for (var j=0;j<NF;j++){
-document.getElementById(ids[j]).value = Math.round(MEAN[j]*100)/100;
+var el=document.getElementById(IDS[j]);
+el.min=MINS[j];
+el.max=MAXS[j];
+var mid=(MINS[j]+MAXS[j])/2;
+el.value=round2(mid);
+document.getElementById("hint_"+IDS[j]).textContent="Allowed range: "+round2(MINS[j])+" to "+round2(MAXS[j]);
 }
 
 document.getElementById("predictBtn").addEventListener("click", function(){
-var x=[];
+var r=document.getElementById("result");
+var x=[]; var errors=[];
+var labels=["Pile Diameter","Pile Length","Ram Weight","Drop Height"];
 for (var j=0;j<NF;j++){
-var val = parseFloat(document.getElementById(ids[j]).value);
-if (isNaN(val)) val = MEAN[j];
+var raw=document.getElementById(IDS[j]).value;
+var val=parseFloat(raw);
+if (raw==="" || isNaN(val)){ errors.push(labels[j]+" is required."); x.push(NaN); continue; }
+if (val<MINS[j] || val>MAXS[j]){ errors.push(labels[j]+" must be between "+round2(MINS[j])+" and "+round2(MAXS[j])+"."); }
 x.push(val);
 }
-var p = predict(x);
-var r = document.getElementById("result");
-r.style.display = "block";
-r.textContent = "Predicted Pile Bearing Capacity: " + p.toFixed(2) + " kN";
+if (errors.length>0){
+r.className="result warn"; r.style.display="block";
+r.textContent=errors.join(" ");
+return;
+}
+var p=predict(x);
+if (p<0) p=0;
+r.className="result"; r.style.display="block";
+r.textContent="Predicted Pile Bearing Capacity: "+p.toFixed(2)+" kN";
 });
+
+setTimeout(runTraining, 50);
 </script>
 </body>
 </html>
