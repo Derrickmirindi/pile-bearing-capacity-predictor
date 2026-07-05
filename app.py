@@ -440,6 +440,7 @@ st.markdown(
     .hero { background: linear-gradient(135deg, #0f4c81 0%, #2a9d8f 100%); padding: 2rem 2.5rem; border-radius: 16px; color: white; margin-bottom: 1.5rem; box-shadow: 0 6px 20px rgba(0,0,0,0.15); }
     .hero h1 { margin: 0; font-size: 2.1rem; }
     .hero p { margin: 0.4rem 0 0 0; opacity: 0.92; font-size: 1.05rem; }
+    .hero .authors { margin: 0.35rem 0 0 0; opacity: 0.9; font-size: 0.95rem; font-style: italic; }
     .result-card { background: #ffffff; border: 1px solid #e6e6e6; border-left: 6px solid #2a9d8f; border-radius: 14px; padding: 1.6rem 1.8rem; box-shadow: 0 4px 14px rgba(0,0,0,0.08); }
     .result-value { font-size: 3rem; font-weight: 800; color: #0f4c81; }
     .result-label { font-size: 1rem; color: #555; text-transform: uppercase; letter-spacing: 1px; }
@@ -452,6 +453,7 @@ st.markdown(
     """
     <div class="hero">
     <h1>🏗️ Pile Bearing Capacity Predictor</h1>
+    <p class="authors">Developed by Derrick Mirindi & David Sinkhonde</p>
     <p>Estimate axial pile bearing capacity (kN) from driving parameters using an XGBoost model.</p>
     </div>
     """,
@@ -510,37 +512,6 @@ with col2:
         f"Trained on {len(df)} records with XGBoost "
         f"(StandardScaler, n_estimators=300, lr=0.01, max_depth=8, 90/10 split)."
     )
-
-st.divider()
-st.subheader("Predicted vs Measured (all records)")
-
-lims = [float(min(y_all.min(), all_pred.min())), float(max(y_all.max(), all_pred.max()))]
-fig = go.Figure()
-fig.add_trace(
-    go.Scatter(
-        x=y_all,
-        y=all_pred,
-        mode="markers",
-        name="Records",
-        marker=dict(color="#2a9d8f", size=8, opacity=0.7),
-    )
-)
-fig.add_trace(
-    go.Scatter(
-        x=lims,
-        y=lims,
-        mode="lines",
-        name="Ideal (y = x)",
-        line=dict(color="#0f4c81", dash="dash"),
-    )
-)
-fig.update_layout(
-    xaxis_title="Measured PBC (kN)",
-    yaxis_title="Predicted PBC (kN)",
-    height=460,
-    margin=dict(l=10, r=10, t=30, b=10),
-)
-st.plotly_chart(fig, use_container_width=True)
 
 with st.expander("View training data"):
     st.dataframe(df, use_container_width=True)
