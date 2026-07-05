@@ -5,7 +5,7 @@ import streamlit as st
 from sklearn.preprocessing import StandardScaler
 import xgboost as xgb
 
-st.set_page_config(page_title="Pile Bearing Capacity Predictor", page_icon="🗎️", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Pile Bearing Capacity Predictor", page_icon="P", layout="wide", initial_sidebar_state="expanded")
 
 FEATURES = ["Pile Diameter (mm)", "Pile Length (m)", "Ram Weight (kN)", "Drop Height (m)"]
 TARGET = "Pile Bearing Capacity (kN)"
@@ -141,132 +141,237 @@ DATA_CSV = """diameter,length,ram_weight,drop_height,pbc
 400,35,25,1,829
 400,35,25,1,605
 300,35,25,1,772
+300,35,25,1,781
+350,10,13,1,500
+350,10,13,1,452
+350,9,13,1,585
+350,10,13,1,603
+350,10,13,1,811
+350,10,13,1,770
+350,10,13,1,748
+226,11,13,1,363
+282,8,18,1,870
+282,5,18,1,1172
+226,10,13,1,537
+226,16,13,1,789
+226,16,13,1,910
+451,24,45,1,1849
+451,24,45,1,1230
+451,24,45,1,1230
+451,24,45,1,1761
+451,24,45,1,2680
+451,24,45,1,1770
+451,24,45,1,1663
+350,13,13,1,660
+350,12,13,1,790
+350,10,13,1,648
+350,10,13,1,817
+350,10,13,1,553
+350,9,13,1,970
+350,13,13,1,806
+350,13,13,1,983
+451,17,13,1,1149
+451,17,13,1,862
+300,26,25,1,1330
+300,27,25,1,997
+300,26,25,1,1106
+282,5,13,1,829
+282,12,13,1,956
+282,7,13,1,390
+282,5,13,1,410
+282,4,13,1,1300
+282,5,13,1,1537
+282,5,13,1,486
+282,6,13,1,378
+282,8,13,1,625
+282,8,13,1,567
+282,11,13,1,754
+282,8,13,1,568
+300,17,25,1,949
+300,17,25,1,469
+282,29,13,1,718
+282,29,13,1,694
+282,29,13,1,642
+226,15,13,1,1102
+226,11,13,1,950
+400,34,53,1.5,1650
+400,34,53,1.5,2750
+226,17,13,1,1008
+226,17,13,1,884
+226,17,13,1,438
+450,33,35,1,1370
+450,31,35,1,1501
+450,33,35,1,1282
+226,21,12,1,389
+226,11,13,1,792
+226,11,13,1,819
+282,23,13,1,626
+282,23,13,1,475
+282,7,13,1,500
+282,7,13,1,1468
+282,8,13,1,821
+282,5,13,1,746
+282,7,13,1,783
+282,7,13,1,505
+282,7,13,1,700
+282,6,13,1,575
+282,8,13,1,751
+282,6,13,1,831
+282,7,13,1,825
+282,8,13,1,568
+500,30,35,1.5,1347
+500,30,35,1.5,950
+282,17,25,1,1141
+282,16,25,1,1392
+282,15,25,1,1096
+226,17,13,1,645
+226,17,13,1,640
+282,20,15,1,1604
+282,20,15,1,1419
+282,19,15,1,1920
+226,23,15,1.5,1015
+226,23,15,1.5,1125
+226,24,15,1.5,1020
+282,11,15,1,1150
+282,10,15,1,1194
+282,12,15,1,885
+282,11,15,1,898
+282,14,13,1.5,910
+282,13,13,1.5,1095
+282,13,13,1.5,916
+254,24,32,1.5,1576
+254,25,32,1.5,1612
+254,25,32,1.5,1681
+254,25,32,1.5,1750
+282,33,13,1.5,1272
+282,10,13,1.5,879
+282,10,13,1.5,799
+282,4,13,1.5,895
+282,4,13,1.5,867
+282,22,13,1.5,1113
+282,34,13,1.5,1005
+226,17,13,1.5,328
+282,11,13,1.5,1572
+282,11,13,1.5,1450
+282,13,13,1.5,854
+282,14,13,1.5,980
+282,13,13,1.5,1063
+395,28,35,1,1341
+226,10,13,1,1058
+226,7,13,1,942
+226,11,13,1,774
+226,8,13,1,749
+226,8,13,1,588
+226,8,13,1,707
+451,12,90,0.4,3530
+306,17,90,0.3,2790
+306,15,90,0.3,2900
+451,23,90,0.4,3430
+451,14,90,0.4,3460
+226,17,25,0.4,780
+226,17,25,0.4,770
+226,17,25,0.4,740
+226,17,25,0.4,770
+226,17,25,0.4,770
+226,22,25,0.2,450
+226,23,25,0.2,410
+226,23,25,0.2,480
+226,23,25,0.27,430
+226,22,25,0.2,410
+282,23,25,0.6,1290
+282,23,25,0.6,1380
+282,20,25,0.6,1380
+451,14,90,0.3,3490
+451,18,90,0.3,3410
+451,18,90,0.3,3320
+451,13,90,0.3,3450
+451,12,90,0.3,2730
+451,11,90,0.3,3470
+451,20,90,0.3,3460
+306,13,90,0.3,2870
+306,12,90,0.3,2960
+451,15,90,0.3,3420
+282,35,90,0.2,1500
+451,12,90,0.4,3370
+306,17,90,0.3,2790
+306,15,90,0.3,2900
+451,24,90,0.4,3430
+451,14,90,0.4,3460
+400,16,70,0.4,1980
+400,25,70,0.4,1850
+400,24,70,0.4,1960
+400,18,70,0.4,2020
+400,16,70,0.4,2160
+400,20,70,0.4,1920
+400,20,70,0.4,1820
+306,29,70,0.6,2550
+306,41,70,0.6,2730
+306,35,70,0.6,2780
+306,30,70,0.6,2490
+306,27,70,0.6,2710
+306,41,70,0.6,1650
+306,41,70,0.6,2690
+306,41,70,0.6,1820
+306,40,70,0.6,2690
+306,28,70,0.6,2460
+306,29,70,0.6,2890
+306,25,70,0.6,2480
+306,26,70,0.6,2480
+306,41,90,0.3,2410
+306,35,90,0.3,1570
+306,29,90,0.3,2760
+306,24,90,0.6,2400
+306,24,90,0.6,2660
+306,24,90,0.6,2540
+306,24,90,0.6,2630
+306,26,90,0.6,2980
+306,27,90,0.45,2710
+306,29,90,0.45,2790
+306,26,90,0.45,2610
+306,27,90,0.45,2790
+350,35,50,0.4,570
+350,35,50,0.4,570
+350,36,50,0.4,560
+350,48,50,0.4,940
+300,30,50,0.2,520
+300,30,50,0.2,640
+300,36,50,0.2,710
+300,48,50,0.3,850
+300,48,50,0.3,890
+300,39,50,0.3,860
+400,42,50,0.3,1170
+350,39,50,0.4,1170
+350,39,50,0.4,1040
+350,39,50,0.4,950
+300,48,50,0.3,850
+300,48,50,0.3,890
+350,24,70,0.5,810
+282,21,20,0.5,1090
+300,11,50,0.4,1310
+300,9,50,0.4,1250
+350,30,50,1,1650
+350,31,50,1,1680
+350,30,50,1,1560
+350,32,50,1,1720
+282,9,20,0.5,1040
+300,27,50,0.6,1730
+300,27,50,0.6,1680
+300,28,50,0.6,1760
+300,27,50,0.6,1700
+300,10,50,0.6,1900
+350,15,50,0.7,1730
+350,12,50,0.7,1550
+400,36,25,1.8,1040
+400,36,25,1.8,1170
+400,36,25,1.8,1080
+300,8,18,1,1200
+350,18,70,0.45,2410
+450,20,70,0.6,3680
+400,23,70,0.65,3360
+282,22,50,0.63,2110
+282,10,70,0.4,2060
+282,13,70,0.4,1970
+282,17,50,0.63,2010
+282,10,15,0.7,980
+282,11,15,0.7,1040
 """
-
-XGB_PARAMS = dict(n_estimators=300, learning_rate=0.01, max_depth=8, objective="reg:squarederror", verbosity=0, random_state=42)
-
-
-@st.cache_data(show_spinner=False)
-def load_data():
-    df = pd.read_csv(io.StringIO(DATA_CSV))
-    df = df.dropna().reset_index(drop=True)
-    return df
-
-
-@st.cache_resource(show_spinner=False)
-def load_and_train():
-    df = load_data()
-    X = df[FEATURE_COLS].values.astype(float)
-    y = df["pbc"].values.astype(float).reshape(-1, 1)
-    x_scaler = StandardScaler()
-    y_scaler = StandardScaler()
-    Xs = x_scaler.fit_transform(X)
-    ys = y_scaler.fit_transform(y).ravel()
-    model = xgb.XGBRegressor(**XGB_PARAMS)
-    model.fit(Xs, ys)
-    return model, x_scaler, y_scaler, df
-
-
-def predict_pbc(model, x_scaler, y_scaler, values):
-    arr = np.array(values, dtype=float).reshape(1, -1)
-    arr_s = x_scaler.transform(arr)
-    pred_s = model.predict(arr_s)
-    pred = y_scaler.inverse_transform(pred_s.reshape(-1, 1)).ravel()[0]
-    return float(pred)
-
-
-st.markdown(
-    """
-    <style>
-    html, body, [class*="css"], .stApp, .stMarkdown, .stMetric,
-    div[data-testid="stMarkdownContainer"], .metric-card, .pred-box,
-    section[data-testid="stSidebar"], .stButton > button, .stDataFrame,
-    h1, h2, h3, h4, h5, h6, p, span, label, div, table, th, td {
-        font-family: "Times New Roman", Times, serif !important;
-    }
-    .main .block-container {padding-top: 2rem; max-width: 1200px;}
-    .hero {background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 60%, #0ea5e9 100%);
-           padding: 2.2rem 2rem; border-radius: 16px; color: #fff; margin-bottom: 1.5rem;
-           box-shadow: 0 8px 24px rgba(30,58,138,0.25);}
-    .hero h1 {color: #fff; font-size: 2.1rem; margin: 0 0 0.3rem 0; font-weight: 700;}
-    .hero p {color: #dbeafe; font-size: 1.02rem; margin: 0;}
-    .metric-card {background: #ffffff; border: 1px solid #e5e7eb; border-radius: 14px;
-                  padding: 1.1rem 1.2rem; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-                  border-top: 4px solid #2563eb; height: 100%;}
-    .metric-card .label {color: #6b7280; font-size: 0.82rem; text-transform: uppercase;
-                         letter-spacing: 0.04em; font-weight: 600;}
-    .metric-card .value {color: #111827; font-size: 1.85rem; font-weight: 700; margin-top: 0.25rem;}
-    .pred-box {background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: #fff;
-               padding: 1.4rem 1.6rem; border-radius: 14px; margin-top: 0.5rem;
-               box-shadow: 0 6px 18px rgba(5,150,105,0.3);}
-    .pred-box .plabel {font-size: 0.9rem; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.04em;}
-    .pred-box .pvalue {font-size: 2.4rem; font-weight: 800; line-height: 1.1;}
-    section[data-testid="stSidebar"] {background: #f8fafc;}
-    div.stButton > button {background: linear-gradient(135deg, #1e3a8a, #2563eb); color: #fff;
-                           border: none; border-radius: 10px; padding: 0.55rem 1rem; font-weight: 600;
-                           width: 100%;}
-    div.stButton > button:hover {background: linear-gradient(135deg, #1e40af, #3b82f6); color: #fff;}
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-model, x_scaler, y_scaler, df = load_and_train()
-
-st.markdown(
-    """
-    <div class="hero">
-        <h1>Pile Bearing Capacity Predictor</h1>
-        <p>Machine learning (XGBoost) estimation of axial pile bearing capacity from driving parameters.</p>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
-st.markdown("#### Model Performance (Training)")
-m = TRAIN_METRICS
-cards = [
-    ("R\u00b2", f"{m['R2']:.4f}"),
-    ("R", f"{m['R']:.4f}"),
-    ("MAPE (%)", f"{m['MAPE']:.2f}"),
-    ("RMSE (kN)", f"{m['RMSE']:.2f}"),
-    ("MAE (kN)", f"{m['MAE']:.2f}"),
-]
-cols = st.columns(5)
-for col, (label, value) in zip(cols, cards):
-    col.markdown(
-        f'<div class="metric-card"><div class="label">{label}</div><div class="value">{value}</div></div>',
-        unsafe_allow_html=True,
-    )
-
-st.write("")
-
-st.sidebar.markdown("### \u2699\ufe0f Input Parameters")
-st.sidebar.caption("Enter the pile driving parameters below.")
-diameter = st.sidebar.number_input(FEATURES[0], min_value=50.0, max_value=1000.0, value=282.0, step=1.0)
-length = st.sidebar.number_input(FEATURES[1], min_value=1.0, max_value=60.0, value=12.0, step=0.1)
-ram_weight = st.sidebar.number_input(FEATURES[2], min_value=1.0, max_value=100.0, value=13.0, step=0.1)
-drop_height = st.sidebar.number_input(FEATURES[3], min_value=0.1, max_value=6.0, value=1.0, step=0.1)
-predict_clicked = st.sidebar.button("Predict Capacity", type="primary")
-
-left, right = st.columns([1, 1])
-with left:
-    st.markdown("#### Prediction")
-    if predict_clicked:
-        pred = predict_pbc(model, x_scaler, y_scaler, [diameter, length, ram_weight, drop_height])
-        st.markdown(
-            f'<div class="pred-box"><div class="plabel">Predicted {TARGET}</div>'
-            f'<div class="pvalue">{pred:,.1f} kN</div></div>',
-            unsafe_allow_html=True,
-        )
-    else:
-        st.info("Set parameters in the sidebar and click **Predict Capacity** to estimate the pile bearing capacity.")
-with right:
-    inp_df = pd.DataFrame({"Parameter": FEATURES, "Value": [diameter, length, ram_weight, drop_height]})
-    st.dataframe(inp_df, hide_index=True, width="stretch")
-
-st.divider()
-with st.expander("\U0001f4c4 View training data ({} records)".format(len(df))):
-    st.dataframe(df, width="stretch")
-
-st.caption("Model: XGBoost Regressor | Features: pile diameter, length, ram weight, drop height.")
