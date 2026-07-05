@@ -377,8 +377,7 @@ DATA_CSV = """diameter,length,ram_weight,drop_height,pbc
 """
 
 
-st.markdown("""<style>html, body, [class*="css"] { font-family: 'Times New Roman', Times, serif; }</style>""", unsafe_allow_html=True)
-
+st.markdown("""<style>html, body, [class*="css"], .stApp, h1, h2, h3, h4, h5, h6, p, div, span, label, button, input { font-family: 'Times New Roman', Times, serif !important; } .stApp { background: linear-gradient(180deg, #f7f9fc 0%, #eef2f7 100%); } .app-title { font-size: 2.6rem; font-weight: 700; color: #0b3d91; margin-bottom: 0.1rem; } .app-credit { font-size: 1.05rem; font-style: italic; color: #444; margin-bottom: 0.2rem; } .app-sub { font-size: 1.1rem; color: #333; margin-bottom: 1.2rem; } .stButton>button { background-color: #0b3d91; color: #ffffff; border-radius: 8px; padding: 0.5rem 1.4rem; font-weight: 600; border: none; } .stButton>button:hover { background-color: #14509e; color: #ffffff; } div[data-testid="stNumberInput"] input { border-radius: 6px; }</style>""", unsafe_allow_html=True)
 @st.cache_resource
 def load_model():
   df = pd.read_csv(io.StringIO(DATA_CSV))
@@ -397,8 +396,9 @@ except Exception as e:
   st.exception(e)
   st.stop()
 
-st.title("Pile Bearing Capacity Predictor")
-st.markdown("Enter the pile parameters below to predict the bearing capacity.")
+st.markdown('<div class="app-title">Pile Bearing Capacity Predictor</div>', unsafe_allow_html=True)
+st.markdown('<div class="app-credit">Based on XGB model, developed by Derrick Mirindi &amp; David Sinkhonde</div>', unsafe_allow_html=True)
+st.markdown('<div class="app-sub">Enter the pile parameters below to predict the bearing capacity.</div>', unsafe_allow_html=True)
 col1, col2 = st.columns(2)
 inputs = {}
 for i, (feature, col) in enumerate(zip(FEATURES, FEATURE_COLS)):
