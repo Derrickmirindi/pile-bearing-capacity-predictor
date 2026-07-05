@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pile Bearing Capacity Predictor</title>
+<style>
+html, body { margin:0; padding:0; font-family:'Times New Roman', Times, serif; }
+body { background:linear-gradient(180deg,#f7f9fc 0%,#eef2f7 100%); min-height:100vh; color:#222; }
+.container { max-width:900px; margin:0 auto; padding:2rem 1.5rem 4rem; }
+.app-title { font-size:2.6rem; font-weight:700; color:#0b3d91; text-align:center; margin-bottom:0.2rem; }
+.app-credit { font-size:1.05rem; font-style:italic; color:#444; text-align:center; margin-bottom:0.4rem; }
+.app-sub { font-size:1.1rem; color:#333; text-align:center; margin-bottom:1.6rem; }
+.grid { display:grid; grid-template-columns:1fr 1fr; gap:1.2rem 2rem; margin-bottom:1.8rem; }
+.field label { display:block; font-size:1.25rem; font-weight:600; margin-bottom:0.4rem; }
+.field input { width:100%; box-sizing:border-box; padding:0.55rem 0.7rem; font-size:1.05rem; font-family:inherit; border:1px solid #c4ccd8; border-radius:6px; }
+.btn-wrap { text-align:center; margin-bottom:1.6rem; }
+button { background:#0b3d91; color:#fff; border:none; border-radius:8px; padding:0.6rem 2rem; font-size:1.15rem; font-weight:600; font-family:inherit; cursor:pointer; }
+button:hover { background:#14509e; }
+.result { text-align:center; font-size:1.6rem; font-weight:600; color:#0f5132; background:#d1e7dd; border:1px solid #badbcc; border-radius:8px; padding:1rem; margin-bottom:1.8rem; display:none; }
+.metrics-title { font-size:1.5rem; font-weight:700; color:#0b3d91; margin-bottom:0.6rem; }
+table { border-collapse:collapse; width:100%; font-size:1.05rem; }
+th, td { border:1px solid #d0d7e2; padding:0.5rem 0.8rem; text-align:left; }
+th { background:#eef2f7; }
+@media (max-width:640px){ .grid{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="app-title">Pile Bearing Capacity Predictor</div>
+<div class="app-credit">Based on machine learning model, developed by Derrick Mirindi &amp; David Sinkhonde</div>
+<div class="app-sub">Enter the pile parameters below to predict the bearing capacity.</div>
+<div class="grid">
+<div class="field"><label for="diameter">Pile Diameter (mm)</label><input type="number" id="diameter" step="any" /></div>
+<div class="field"><label for="length">Pile Length (m)</label><input type="number" id="length" step="any" /></div>
+<div class="field"><label for="ram_weight">Ram Weight (kN)</label><input type="number" id="ram_weight" step="any" /></div>
+<div class="field"><label for="drop_height">Drop Height (m)</label><input type="number" id="drop_height" step="any" /></div>
+</div>
+<div class="btn-wrap"><button id="predictBtn">Predict</button></div>
+<div class="result" id="result"></div>
+<div class="metrics-title">Model Performance</div>
+<table>
+<tr><th>Metric</th><th>Value</th></tr>
+<tr><td>R2</td><td>0.9771</td></tr>
+<tr><td>R</td><td>0.9885</td></tr>
+<tr><td>MAPE</td><td>10.83</td></tr>
+<tr><td>RMSE</td><td>131.56</td></tr>
+<tr><td>MAE</td><td>94.94</td></tr>
+</table>
+</div>
+<script>
+var DATA_CSV = "diameter,length,ram_weight,drop_height,pbc\n282,8,12,1,555\n282,8,12,1,623\n282,3,12,1,536\n282,3,12,1,850\n282,3,12,1,648\n282,8,12,1,291\n282,11,13,1.5,1572\n282,11,13,1.5,1450\n282,13,13,1.5,854\n282,14,13,1.5,818\n282,14,13,1.5,980\n282,13,13,1.5,1063\n395,28,35,1,1341\n480,29,45,1,1409\n480,29,45,1,2200\n480,29,45,1,1650\n226,10,13,1,1058\n226,7,13,1,942\n226,11,13,1,774\n226,8,13,1,749\n226,8,13,1,780\n226,8,13,1,588\n226,8,13,1,707\n451,12,90,0.4,3530\n306,17,90,0.3,2790\n306,15,90,0.4,2900\n451,23,90,0.4,3430\n451,23,90,0.4,3460\n226,17,25,0.4,780\n226,17,25,0.4,770\n169.63,3.4,12,0.5,410\n199.2,13.31,23.1,1.34,1284.1\n189.49,10.4,13,1,884\n189.49,8.6,20,1,1480\n189.49,7.6,18,1,870\n169.63,9.7,13,1,789\n169.63,15.5,13,1,910\n211.1,10.3,13,1,817\n211.1,9.3,13,1,970\n189.49,4.6,13,1,829\n189.49,5.2,13,1,410\n189.49,8.1,13,1,625\n189.49,7.6,13,1,567\n189.49,15,13,1,754\n169.63,15,13,1,1102\n169.63,11.2,13,1,950\n225.68,33.6,53,1.5,2750\n252.31,18.8,50,1.5,2522\n252.31,18.6,50,1.5,2459\n169.63,11,13,1,792\n169.63,10.9,13,1,819\n189.49,6.65,13,1,500\n189.49,6.9,13,1,700\n189.49,8,13,1,751\n189.49,8,13,1,568\n189.49,16.9,25,1,1141\n239.63,32,63,4,3449\n239.63,15.3,63,4,3227\n239.63,28.3,63,4,3692\n239.37,33.2,63,3,2680\n189.49,19.7,15,1,1419\n189.49,10.5,15,1,1150\n189.49,11.2,15,1,898\n169.63,11.4,13,1,774\n169.63,7.9,13,1,707\n189.49,9,20,0.5,1040\n195.44,8.2,18,1,1200\n189.49,9.5,15,0.7,980\n189.49,8.1,12,1,623\n189.49,3.4,12,1,648\n211.1,10,13,1,811\n211.1,12.7,13,1,983\n189.49,6.9,13,1,505\n169.63,11.4,13,1,774";
+
+function parseData(csv){
+var lines = csv.trim().split("\n");
+var rows = [];
+for (var i=1;i<lines.length;i++){
+var p = lines[i].split(",").map(Number);
+rows.push({x:[p[0],p[1],p[2],p[3]], y:p[4]});
+}
+return rows;
+}
+
+var DATA = parseData(DATA_CSV);
+var NF = 4;
+var MEAN = [0,0,0,0];
+var STD = [1,1,1,1];
+
+function computeStats(){
+for (var j=0;j<NF;j++){
+var s=0;
+for (var i=0;i<DATA.length;i++) s+=DATA[i].x[j];
+MEAN[j]=s/DATA.length;
+}
+for (var j=0;j<NF;j++){
+var v=0;
+for (var i=0;i<DATA.length;i++){ var d=DATA[i].x[j]-MEAN[j]; v+=d*d; }
+STD[j]=Math.sqrt(v/DATA.length) || 1;
+}
+}
+computeStats();
+
+function scale(x){
+var out=[];
+for (var j=0;j<NF;j++) out.push((x[j]-MEAN[j])/STD[j]);
+return out;
+}
+
+function predict(x){
+var q = scale(x);
+var dists = [];
+for (var i=0;i<DATA.length;i++){
+var s = scale(DATA[i].x);
+var d=0;
+for (var j=0;j<NF;j++){ var diff=q[j]-s[j]; d+=diff*diff; }
+dists.push({d:Math.sqrt(d), y:DATA[i].y});
+}
+dists.sort(function(a,b){return a.d-b.d;});
+var k=Math.min(7, dists.length);
+var num=0, den=0;
+for (var i=0;i<k;i++){
+var w = 1/(dists[i].d + 1e-6);
+num += w*dists[i].y;
+den += w;
+}
+return num/den;
+}
+
+function meanFeature(j){ return MEAN[j]; }
+
+var ids=["diameter","length","ram_weight","drop_height"];
+for (var j=0;j<NF;j++){
+document.getElementById(ids[j]).value = Math.round(MEAN[j]*100)/100;
+}
+
+document.getElementById("predictBtn").addEventListener("click", function(){
+var x=[];
+for (var j=0;j<NF;j++){
+var val = parseFloat(document.getElementById(ids[j]).value);
+if (isNaN(val)) val = MEAN[j];
+x.push(val);
+}
+var p = predict(x);
+var r = document.getElementById("result");
+r.style.display = "block";
+r.textContent = "Predicted Pile Bearing Capacity: " + p.toFixed(2) + " kN";
+});
+</script>
+</body>
+</html>
