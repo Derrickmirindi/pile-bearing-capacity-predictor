@@ -4,6 +4,7 @@ import pandas as pd
 import streamlit as st
 import plotly.graph_objects as go
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 import xgboost as xgb
 
@@ -147,36 +148,56 @@ DATA_CSV = """diameter,length,ram_weight,drop_height,pbc
 300,35,25,1,772
 """
 
+def mape(y_true, y_pred):
+    y_true = np.asarray(y_true, dtype=float)
+    y_pred = np.asarray(y_pred, dtype=float)
+    mask = y_true != 0
+    return float(np.mean(np.abs((y_true[mask] - y_pred[mask]) / y_true[mask])) * 100)
+
 @st.cache_resource(show_spinner="Training XGBoost model...")
 def load_and_train():
     df = pd.read_csv(io.StringIO(DATA_CSV))
-    df = df.dropna().drop_duplicates().reset_index(drop=True)
+    df = df.replace([np.inf, -np.inf], np.nan).dropna().reset_index(drop=True)
     X = df[["diameter", "length", "ram_weight", "drop_height"]].values
     y = df["pbc"].values
+
+    scaler_X = StandardScaler()
+    scaler_y = StandardScaler()
+    X_scaled = scaler_X.fit_transform(X)
+    y_scaled = scaler_y.fit_transform(y.reshape(-1, 1)).flatten()
+
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
+        X_scaled, y_scaled, test_size=0.1, random_state=42
     )
+
     model = xgb.XGBRegressor(
-        n_estimators=600,
-        learning_rate=0.05,
-        max_depth=4,
-        subsample=0.9,
-        colsample_bytree=0.9,
-        reg_lambda=1.0,
-        random_state=42,
+        n_estimators=300,
+        learning_rate=0.01,
+        max_depth=8,
         objective="reg:squarederror",
+        verbosity=0,
     )
     model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
-    metrics = {
-        "r2": r2_score(y_test, y_pred),
-        "mae": mean_absolute_error(y_test, y_pred),
-        "rmse": float(np.sqrt(mean_squared_error(y_test, y_pred))),
-    }
-    all_pred = model.predict(X)
-    return model, df, metrics, y, all_pred
 
-model, df, metrics, y_all, all_pred = load_and_train()
+    y_pred_test = scaler_y.inverse_transform(
+        model.predict(X_test).reshape(-1, 1)
+    ).flatten()
+    y_true_test = scaler_y.inverse_transform(y_test.reshape(-1, 1)).flatten()
+
+    metrics = {
+        "r2": r2_score(y_true_test, y_pred_test),
+        "mape": mape(y_true_test, y_pred_test),
+        "rmse": float(np.sqrt(mean_squared_error(y_true_test, y_pred_test))),
+        "mae": mean_absolute_error(y_true_test, y_pred_test),
+    }
+
+    all_pred = scaler_y.inverse_transform(
+        model.predict(X_scaled).reshape(-1, 1)
+    ).flatten()
+
+    return model, scaler_X, scaler_y, df, metrics, y, all_pred
+
+model, scaler_X, scaler_y, df, metrics, y_all, all_pred = load_and_train()
 
 st.markdown(
     """
@@ -237,7 +258,9 @@ with col1:
     st.subheader("Prediction")
     if predict:
         x_new = np.array([[diameter, length, ram_weight, drop_height]])
-        pred = float(model.predict(x_new)[0])
+        x_new_scaled = scaler_X.transform(x_new)
+        pred_scaled = model.predict(x_new_scaled).reshape(-1, 1)
+        pred = float(scaler_y.inverse_transform(pred_scaled).flatten()[0])
         st.markdown(
             f"""
             <div class="result-card">
@@ -255,12 +278,17 @@ with col1:
         st.info("Set the parameters in the sidebar and click **Predict Capacity**.")
 
 with col2:
-    st.subheader("Model Performance")
-    m1, m2, m3 = st.columns(3)
+    st.subheader("XGBoost Model Performance")
+    m1, m2 = st.columns(2)
     m1.metric("R\u00b2", f"{metrics['r2']:.3f}")
-    m2.metric("MAE (kN)", f"{metrics['mae']:.0f}")
-    m3.metric("RMSE (kN)", f"{metrics['rmse']:.0f}")
-    st.caption(f"Trained on {len(df)} records with XGBoost (80/20 split).")
+    m2.metric("MAPE (%)", f"{metrics['mape']:.2f}")
+    m3, m4 = st.columns(2)
+    m3.metric("RMSE (kN)", f"{metrics['rmse']:.1f}")
+    m4.metric("MAE (kN)", f"{metrics['mae']:.1f}")
+    st.caption(
+        f"Trained on {len(df)} records with XGBoost "
+        f"(StandardScaler, n_estimators=300, lr=0.01, max_depth=8, 90/10 split)."
+    )
 
 st.divider()
 st.subheader("Predicted vs Measured (all records)")
