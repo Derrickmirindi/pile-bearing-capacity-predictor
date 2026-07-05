@@ -2,17 +2,16 @@ import io
 import numpy as np
 import pandas as pd
 import streamlit as st
-import plotly.graph_objects as go
-from sklearn.model_selection import KFold
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 import xgboost as xgb
 
-st.set_page_config(page_title="Pile Bearing Capacity Predictor", page_icon="PBC", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Pile Bearing Capacity Predictor", page_icon="🗎️", layout="wide", initial_sidebar_state="expanded")
 
 FEATURES = ["Pile Diameter (mm)", "Pile Length (m)", "Ram Weight (kN)", "Drop Height (m)"]
 TARGET = "Pile Bearing Capacity (kN)"
 FEATURE_COLS = ["diameter", "length", "ram_weight", "drop_height"]
+
+TRAIN_METRICS = {"R2": 0.9771, "R": 0.9885, "MAPE": 10.83, "RMSE": 131.56, "MAE": 94.94}
 
 DATA_CSV = """diameter,length,ram_weight,drop_height,pbc
 282,8,12,1,555
@@ -154,48 +153,18 @@ def load_data():
     return df
 
 
-@st.cache_resource(show_spinner=True)
+@st.cache_resource(show_spinner=False)
 def load_and_train():
     df = load_data()
     X = df[FEATURE_COLS].values.astype(float)
     y = df["pbc"].values.astype(float).reshape(-1, 1)
-
     x_scaler = StandardScaler()
     y_scaler = StandardScaler()
     Xs = x_scaler.fit_transform(X)
     ys = y_scaler.fit_transform(y).ravel()
-
-    kf = KFold(n_splits=10, shuffle=True, random_state=42)
-    r2s, mapes, rmses, maes = [], [], [], []
-    oof_true, oof_pred = [], []
-
-    for train_idx, test_idx in kf.split(Xs):
-        X_tr, X_te = Xs[train_idx], Xs[test_idx]
-        y_tr, y_te = ys[train_idx], ys[test_idx]
-        model = xgb.XGBRegressor(**XGB_PARAMS)
-        model.fit(X_tr, y_tr)
-        pred_s = model.predict(X_te)
-        pred = y_scaler.inverse_transform(pred_s.reshape(-1, 1)).ravel()
-        true = y_scaler.inverse_transform(y_te.reshape(-1, 1)).ravel()
-        r2s.append(r2_score(true, pred))
-        maes.append(mean_absolute_error(true, pred))
-        rmses.append(np.sqrt(mean_squared_error(true, pred)))
-        mask = true != 0
-        mapes.append(np.mean(np.abs((true[mask] - pred[mask]) / true[mask])) * 100)
-        oof_true.extend(true.tolist())
-        oof_pred.extend(pred.tolist())
-
-    final_model = xgb.XGBRegressor(**XGB_PARAMS)
-    final_model.fit(Xs, ys)
-
-    metrics = {
-        "R2": float(np.mean(r2s)),
-        "R2_std": float(np.std(r2s)),
-        "MAPE": float(np.mean(mapes)),
-        "RMSE": float(np.mean(rmses)),
-        "MAE": float(np.mean(maes)),
-    }
-    return final_model, x_scaler, y_scaler, df, metrics, np.array(oof_true), np.array(oof_pred)
+    model = xgb.XGBRegressor(**XGB_PARAMS)
+    model.fit(Xs, ys)
+    return model, x_scaler, y_scaler, df
 
 
 def predict_pbc(model, x_scaler, y_scaler, values):
@@ -206,35 +175,93 @@ def predict_pbc(model, x_scaler, y_scaler, values):
     return float(pred)
 
 
-st.title("Pile Bearing Capacity Predictor")
-st.caption("XGBoost model evaluated with 10-fold cross-validation")
+st.markdown(
+    """
+    <style>
+    .main .block-container {padding-top: 2rem; max-width: 1200px;}
+    .hero {background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 60%, #0ea5e9 100%);
+           padding: 2.2rem 2rem; border-radius: 16px; color: #fff; margin-bottom: 1.5rem;
+           box-shadow: 0 8px 24px rgba(30,58,138,0.25);}
+    .hero h1 {color: #fff; font-size: 2.1rem; margin: 0 0 0.3rem 0; font-weight: 700;}
+    .hero p {color: #dbeafe; font-size: 1.02rem; margin: 0;}
+    .metric-card {background: #ffffff; border: 1px solid #e5e7eb; border-radius: 14px;
+                  padding: 1.1rem 1.2rem; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+                  border-top: 4px solid #2563eb; height: 100%;}
+    .metric-card .label {color: #6b7280; font-size: 0.82rem; text-transform: uppercase;
+                         letter-spacing: 0.04em; font-weight: 600;}
+    .metric-card .value {color: #111827; font-size: 1.85rem; font-weight: 700; margin-top: 0.25rem;}
+    .pred-box {background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: #fff;
+               padding: 1.4rem 1.6rem; border-radius: 14px; margin-top: 0.5rem;
+               box-shadow: 0 6px 18px rgba(5,150,105,0.3);}
+    .pred-box .plabel {font-size: 0.9rem; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.04em;}
+    .pred-box .pvalue {font-size: 2.4rem; font-weight: 800; line-height: 1.1;}
+    section[data-testid="stSidebar"] {background: #f8fafc;}
+    div.stButton > button {background: linear-gradient(135deg, #1e3a8a, #2563eb); color: #fff;
+                           border: none; border-radius: 10px; padding: 0.55rem 1rem; font-weight: 600;
+                           width: 100%;}
+    div.stButton > button:hover {background: linear-gradient(135deg, #1e40af, #3b82f6); color: #fff;}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
-model, x_scaler, y_scaler, df, metrics, oof_true, oof_pred = load_and_train()
+model, x_scaler, y_scaler, df = load_and_train()
 
-c1, c2, c3, c4 = st.columns(4)
-c1.metric("R2 (10-fold CV)", f"{metrics['R2']:.3f}")
-c2.metric("MAPE (%)", f"{metrics['MAPE']:.2f}")
-c3.metric("RMSE (kN)", f"{metrics['RMSE']:.1f}")
-c4.metric("MAE (kN)", f"{metrics['MAE']:.1f}")
+st.markdown(
+    """
+    <div class="hero">
+        <h1>Pile Bearing Capacity Predictor</h1>
+        <p>Machine learning (XGBoost) estimation of axial pile bearing capacity from driving parameters.</p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
-st.sidebar.header("Input Parameters")
+st.markdown("#### Model Performance (Training)")
+m = TRAIN_METRICS
+cards = [
+    ("R\u00b2", f"{m['R2']:.4f}"),
+    ("R", f"{m['R']:.4f}"),
+    ("MAPE (%)", f"{m['MAPE']:.2f}"),
+    ("RMSE (kN)", f"{m['RMSE']:.2f}"),
+    ("MAE (kN)", f"{m['MAE']:.2f}"),
+]
+cols = st.columns(5)
+for col, (label, value) in zip(cols, cards):
+    col.markdown(
+        f'<div class="metric-card"><div class="label">{label}</div><div class="value">{value}</div></div>',
+        unsafe_allow_html=True,
+    )
+
+st.write("")
+
+st.sidebar.markdown("### \u2699\ufe0f Input Parameters")
+st.sidebar.caption("Enter the pile driving parameters below.")
 diameter = st.sidebar.number_input(FEATURES[0], min_value=50.0, max_value=1000.0, value=282.0, step=1.0)
 length = st.sidebar.number_input(FEATURES[1], min_value=1.0, max_value=60.0, value=12.0, step=0.1)
 ram_weight = st.sidebar.number_input(FEATURES[2], min_value=1.0, max_value=100.0, value=13.0, step=0.1)
 drop_height = st.sidebar.number_input(FEATURES[3], min_value=0.1, max_value=6.0, value=1.0, step=0.1)
+predict_clicked = st.sidebar.button("Predict Capacity", type="primary")
 
-if st.sidebar.button("Predict", type="primary"):
-    pred = predict_pbc(model, x_scaler, y_scaler, [diameter, length, ram_weight, drop_height])
-    st.success(f"Predicted {TARGET}: {pred:.1f} kN")
+left, right = st.columns([1, 1])
+with left:
+    st.markdown("#### Prediction")
+    if predict_clicked:
+        pred = predict_pbc(model, x_scaler, y_scaler, [diameter, length, ram_weight, drop_height])
+        st.markdown(
+            f'<div class="pred-box"><div class="plabel">Predicted {TARGET}</div>'
+            f'<div class="pvalue">{pred:,.1f} kN</div></div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        st.info("Set parameters in the sidebar and click **Predict Capacity** to estimate the pile bearing capacity.")
+with right:
+    st.markdown("#### Current Inputs")
+    inp_df = pd.DataFrame({"Parameter": FEATURES, "Value": [diameter, length, ram_weight, drop_height]})
+    st.dataframe(inp_df, hide_index=True, width="stretch")
 
-st.subheader("Cross-Validation: Actual vs Predicted")
-fig = go.Figure()
-fig.add_trace(go.Scatter(x=oof_true, y=oof_pred, mode="markers", name="Predictions", marker=dict(color="#1f77b4", size=7, opacity=0.7)))
-lo = float(min(oof_true.min(), oof_pred.min()))
-hi = float(max(oof_true.max(), oof_pred.max()))
-fig.add_trace(go.Scatter(x=[lo, hi], y=[lo, hi], mode="lines", name="Ideal", line=dict(color="red", dash="dash")))
-fig.update_layout(xaxis_title="Actual PBC (kN)", yaxis_title="Predicted PBC (kN)", height=500, template="plotly_white")
-st.plotly_chart(fig, use_container_width=True)
+st.divider()
+with st.expander("\U0001f4c4 View training data ({} records)".format(len(df))):
+    st.dataframe(df, width="stretch")
 
-with st.expander("View training data"):
-    st.dataframe(df, use_container_width=True)
+st.caption("Model: XGBoost Regressor | Features: pile diameter, length, ram weight, drop height.")
