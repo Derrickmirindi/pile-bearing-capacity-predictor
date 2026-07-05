@@ -178,6 +178,12 @@ def predict_pbc(model, x_scaler, y_scaler, values):
 st.markdown(
     """
     <style>
+    html, body, [class*="css"], .stApp, .stMarkdown, .stMetric,
+    div[data-testid="stMarkdownContainer"], .metric-card, .pred-box,
+    section[data-testid="stSidebar"], .stButton > button, .stDataFrame,
+    h1, h2, h3, h4, h5, h6, p, span, label, div, table, th, td {
+        font-family: "Times New Roman", Times, serif !important;
+    }
     .main .block-container {padding-top: 2rem; max-width: 1200px;}
     .hero {background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 60%, #0ea5e9 100%);
            padding: 2.2rem 2rem; border-radius: 16px; color: #fff; margin-bottom: 1.5rem;
@@ -256,7 +262,6 @@ with left:
     else:
         st.info("Set parameters in the sidebar and click **Predict Capacity** to estimate the pile bearing capacity.")
 with right:
-    st.markdown("#### Current Inputs")
     inp_df = pd.DataFrame({"Parameter": FEATURES, "Value": [diameter, length, ram_weight, drop_height]})
     st.dataframe(inp_df, hide_index=True, width="stretch")
 
