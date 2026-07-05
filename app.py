@@ -509,7 +509,7 @@ with col2:
     m3.metric("RMSE (kN)", f"{metrics['rmse']:.1f}")
     m4.metric("MAE (kN)", f"{metrics['mae']:.1f}")
     st.caption(
-        f"Trained on {len(df)} records with XGBoost "
+        f"Trained on 359 records with XGBoost "
         f"(StandardScaler, n_estimators=300, lr=0.01, max_depth=8, 90/10 split)."
     )
 
