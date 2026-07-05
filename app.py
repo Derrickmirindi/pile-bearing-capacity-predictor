@@ -1,77 +1,296 @@
+import io
 import numpy as np
-import joblib
+import pandas as pd
 import streamlit as st
+import plotly.graph_objects as go
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
+import xgboost as xgb
 
 st.set_page_config(
-    page_title="Pile Bearing Capacity Predictor",
-    page_icon="\U0001F3D7\uFE0F",
-    layout="wide",
-    initial_sidebar_state="expanded",
+page_title="Pile Bearing Capacity Predictor",
+page_icon="🏷️",
+layout="wide",
+initial_sidebar_state="expanded",
 )
 
 FEATURES = ["Pile Diameter (mm)", "Pile Length (m)", "Ram Weight (kN)", "Drop Height (m)"]
+TARGET = "Pile Bearing Capacity (kN)"
 
-CUSTOM_CSS = """
-<style>
-.block-container {padding-top: 2rem; max-width: 1100px;}
-.hero {background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); padding: 2rem 2.5rem; border-radius: 16px; color: #ffffff; margin-bottom: 1.5rem;}
-.hero h1 {color: #ffffff; margin: 0; font-size: 2rem;}
-.hero p {color: #dbeafe; margin: 0.4rem 0 0 0; font-size: 1rem;}
-.result-card {background: #ecfdf5; border: 1px solid #10b981; border-radius: 14px; padding: 1.5rem; text-align: center; margin-top: 1rem;}
-.result-value {font-size: 2.6rem; font-weight: 700; color: #047857; margin: 0;}
-.result-label {font-size: 1rem; color: #065f46; margin: 0;}
-.stButton>button {width: 100%; border-radius: 10px; height: 3rem; font-weight: 600;}
-</style>
+DATA_CSV = """diameter,length,ram_weight,drop_height,pbc
+282,8,12,1,555
+282,8,12,1,623
+282,3,12,1,536
+282,3,12,1,850
+282,3,12,1,648
+282,8,12,1,291
+282,11,13,1.5,1572
+282,11,13,1.5,1450
+282,13,13,1.5,854
+282,14,13,1.5,818
+282,14,13,1.5,980
+282,13,13,1.5,1063
+395,28,35,1,1341
+480,29,45,1,1409
+480,29,45,1,2200
+480,29,45,1,1650
+226,10,13,1,1058
+226,7,13,1,942
+226,11,13,1,774
+226,8,13,1,749
+226,8,13,1,780
+226,8,13,1,588
+226,8,13,1,707
+451,12,90,0.4,3530
+306,17,90,0.3,2790
+306,15,90,0.4,2900
+451,23,90,0.4,3430
+451,23,90,0.4,3460
+226,17,25,0.4,780
+226,17,25,0.4,770
+169.63,3.4,12,0.5,410
+199.2,13.31,23.1,1.34,1284.1
+189.49,10.4,13,1,884
+189.49,8.6,20,1,1480
+189.49,7.6,18,1,870
+169.63,9.7,13,1,789
+169.63,15.5,13,1,910
+211.1,10.3,13,1,817
+211.1,9.3,13,1,970
+189.49,4.6,13,1,829
+189.49,5.2,13,1,410
+189.49,8.1,13,1,625
+189.49,7.6,13,1,567
+189.49,15,13,1,754
+169.63,15,13,1,1102
+169.63,11.2,13,1,950
+225.68,33.6,53,1.5,2750
+252.31,18.8,50,1.5,2522
+252.31,18.6,50,1.5,2459
+169.63,11,13,1,792
+169.63,10.9,13,1,819
+189.49,6.65,13,1,500
+189.49,6.9,13,1,700
+189.49,8.6,20,1,1480
+189.49,7.6,18,1,870
+169.63,9.7,13,1,789
+169.63,15.5,13,1,910
+211.1,10.3,13,1,817
+211.1,9.3,13,1,970
+189.49,4.6,13,1,829
+189.49,5.2,13,1,410
+189.49,8.1,13,1,625
+189.49,7.6,13,1,567
+189.49,11.3,13,1,754
+169.63,15,13,1,1102
+169.63,11.2,13,1,950
+225.68,33.6,53,1.5,2750
+252.31,18.8,50,1.5,2522
+252.31,18.6,50,1.5,2459
+169.63,11,13,1,792
+169.63,10.9,13,1,819
+189.49,6.65,13,1,500
+189.49,6.9,13,1,700
+189.49,8,13,1,751
+189.49,8,13,1,568
+189.49,16.9,25,1,1141
+239.63,32,63,4,3449
+239.63,15.3,63,4,3227
+239.63,28.3,63,4,3692
+239.37,33.2,63,3,2680
+189.49,19.7,15,1,1419
+189.49,10.5,15,1,1150
+189.49,11.2,15,1,898
+169.63,11.4,13,1,774
+169.63,7.9,13,1,707
+189.49,9,20,0.5,1040
+195.44,8.2,18,1,1200
+189.49,9.5,15,0.7,980
+189.49,8.1,12,1,623
+189.49,3.4,12,1,648
+189.49,8.6,20,1,1480
+211.1,10,13,1,811
+169.63,9.7,13,1,789
+211.1,10.3,13,1,817
+211.1,12.7,13,1,983
+189.49,11.3,13,1,754
+225.68,33.6,53,1.5,2750
+189.49,6.9,13,1,505
+189.49,8,13,1,568
+239.63,28.3,63,4,3692
+239.37,33.2,63,3,2680
+169.63,11.4,13,1,774
+189.49,10.5,15,0.7,1040
+282,8,12,1,555
+282,8,12,1,623
+282,3,12,1,536
+282,3,12,1,850
+282,8,12,1,648
+282,8,12,1,291
+226,10,13,1,318
+226,9,13,1,858
+282,23,13,1,560
+282,23,13,1,427
+282,22,13,1,979
+282,23,13,1,568
+282,22,13,1,533
+282,23,13,1,586
+282,22,13,1,934
+282,22,13,1,749
+282,22,13,1,753
+282,23,13,1,810
+282,15,20,1,669
+282,9,20,1,1480
+282,10,20,1,1225
+400,35,25,1,829
+400,35,25,1,605
+300,35,25,1,772
 """
-st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
-@st.cache_resource
-def load_artifacts():
-    model = joblib.load("xgb_model.pkl")
-    scaler_X = joblib.load("scaler_X.pkl")
-    scaler_y = joblib.load("scaler_y.pkl")
-    return model, scaler_X, scaler_y
+@st.cache_resource(show_spinner="Training XGBoost model...")
+def load_and_train():
+    df = pd.read_csv(io.StringIO(DATA_CSV))
+    df = df.dropna().drop_duplicates().reset_index(drop=True)
+    X = df[["diameter", "length", "ram_weight", "drop_height"]].values
+    y = df["pbc"].values
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
+    model = xgb.XGBRegressor(
+        n_estimators=600,
+        learning_rate=0.05,
+        max_depth=4,
+        subsample=0.9,
+        colsample_bytree=0.9,
+        reg_lambda=1.0,
+        random_state=42,
+        objective="reg:squarederror",
+    )
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    metrics = {
+        "r2": r2_score(y_test, y_pred),
+        "mae": mean_absolute_error(y_test, y_pred),
+        "rmse": float(np.sqrt(mean_squared_error(y_test, y_pred))),
+    }
+    all_pred = model.predict(X)
+    return model, df, metrics, y, all_pred
 
-with st.sidebar:
-    st.header("About")
-    st.write("This tool predicts pile bearing capacity using a tuned XGBoost regression model.")
-    st.markdown("**Inputs**")
-    st.markdown("- Pile Diameter (mm)\n- Pile Length (m)\n- Ram Weight (kN)\n- Drop Height (m)")
-    st.markdown("**Output**")
-    st.markdown("- Pile Bearing Capacity (kN)")
-    st.caption("Model: XGBoost | Features scaled with StandardScaler")
+model, df, metrics, y_all, all_pred = load_and_train()
 
 st.markdown(
-    '<div class="hero"><h1>Pile Bearing Capacity Predictor</h1>'
-    '<p>Estimate driven-pile bearing capacity (kN) from geometry and driving energy using an XGBoost model.</p></div>',
+    """
+    <style>
+    .hero {
+        background: linear-gradient(135deg, #0f4c81 0%, #2a9d8f 100%);
+        padding: 2rem 2.5rem;
+        border-radius: 16px;
+        color: white;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    }
+    .hero h1 { margin: 0; font-size: 2.1rem; }
+    .hero p { margin: 0.4rem 0 0 0; opacity: 0.92; font-size: 1.05rem; }
+    .result-card {
+        background: #ffffff;
+        border: 1px solid #e6e6e6;
+        border-left: 6px solid #2a9d8f;
+        border-radius: 14px;
+        padding: 1.6rem 1.8rem;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+    }
+    .result-value { font-size: 3rem; font-weight: 800; color: #0f4c81; }
+    .result-label { font-size: 1rem; color: #555; text-transform: uppercase; letter-spacing: 1px; }
+    </style>
+    """,
     unsafe_allow_html=True,
 )
 
-st.subheader("Input Parameters")
-col1, col2 = st.columns(2)
+st.markdown(
+    """
+    <div class="hero">
+        <h1>🏷️ Pile Bearing Capacity Predictor</h1>
+        <p>Estimate axial pile bearing capacity (kN) from driving parameters using an XGBoost model.</p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+st.sidebar.header("Input Parameters")
+diameter = st.sidebar.number_input(
+    "Pile Diameter (mm)", min_value=50.0, max_value=1000.0, value=282.0, step=1.0
+)
+length = st.sidebar.number_input(
+    "Pile Length (m)", min_value=1.0, max_value=60.0, value=12.0, step=0.1
+)
+ram_weight = st.sidebar.number_input(
+    "Ram Weight (kN)", min_value=1.0, max_value=150.0, value=20.0, step=1.0
+)
+drop_height = st.sidebar.number_input(
+    "Drop Height (m)", min_value=0.1, max_value=5.0, value=1.0, step=0.1
+)
+predict = st.sidebar.button("Predict Capacity", type="primary", use_container_width=True)
+
+col1, col2 = st.columns([1.1, 1])
+
 with col1:
-    diameter = st.number_input("Pile Diameter (mm)", min_value=0.0, value=300.0, step=10.0, help="Outer diameter of the pile in millimeters.")
-    length = st.number_input("Pile Length (m)", min_value=0.0, value=15.0, step=0.5, help="Embedded length of the pile in meters.")
-with col2:
-    ram_weight = st.number_input("Ram Weight (kN)", min_value=0.0, value=40.0, step=1.0, help="Weight of the hammer ram in kilonewtons.")
-    drop_height = st.number_input("Drop Height (m)", min_value=0.0, value=1.0, step=0.1, help="Hammer drop height in meters.")
-
-st.markdown("")
-predict = st.button("Predict Bearing Capacity", type="primary")
-
-if predict:
-    try:
-        model, scaler_X, scaler_y = load_artifacts()
-        X = np.array([[diameter, length, ram_weight, drop_height]])
-        X_scaled = scaler_X.transform(X)
-        pred_scaled = model.predict(X_scaled)
-        pred = scaler_y.inverse_transform(pred_scaled.reshape(-1, 1)).flatten()[0]
+    st.subheader("Prediction")
+    if predict:
+        x_new = np.array([[diameter, length, ram_weight, drop_height]])
+        pred = float(model.predict(x_new)[0])
         st.markdown(
-            f'<div class="result-card"><p class="result-label">Predicted Pile Bearing Capacity</p>'
-            f'<p class="result-value">{pred:,.1f} kN</p></div>',
+            f"""
+            <div class="result-card">
+                <div class="result-label">Predicted Pile Bearing Capacity</div>
+                <div class="result-value">{pred:,.0f} kN</div>
+            </div>
+            """,
             unsafe_allow_html=True,
         )
-        with st.expander("View input summary"):
-            st.table({"Parameter": FEATURES, "Value": [diameter, length, ram_weight, drop_height]})
-    except FileNotFoundError:
-        st.error("Model files not found. Run train_model.py first to generate xgb_model.pkl and the scalers.")
+        st.caption(
+            f"Inputs \u2192 Diameter: {diameter} mm | Length: {length} m | "
+            f"Ram: {ram_weight} kN | Drop: {drop_height} m"
+        )
+    else:
+        st.info("Set the parameters in the sidebar and click **Predict Capacity**.")
+
+with col2:
+    st.subheader("Model Performance")
+    m1, m2, m3 = st.columns(3)
+    m1.metric("R\u00b2", f"{metrics['r2']:.3f}")
+    m2.metric("MAE (kN)", f"{metrics['mae']:.0f}")
+    m3.metric("RMSE (kN)", f"{metrics['rmse']:.0f}")
+    st.caption(f"Trained on {len(df)} records with XGBoost (80/20 split).")
+
+st.divider()
+st.subheader("Predicted vs Measured (all records)")
+lims = [float(min(y_all.min(), all_pred.min())), float(max(y_all.max(), all_pred.max()))]
+fig = go.Figure()
+fig.add_trace(
+    go.Scatter(
+        x=y_all,
+        y=all_pred,
+        mode="markers",
+        name="Records",
+        marker=dict(color="#2a9d8f", size=8, opacity=0.7),
+    )
+)
+fig.add_trace(
+    go.Scatter(
+        x=lims,
+        y=lims,
+        mode="lines",
+        name="Ideal (y = x)",
+        line=dict(color="#0f4c81", dash="dash"),
+    )
+)
+fig.update_layout(
+    xaxis_title="Measured PBC (kN)",
+    yaxis_title="Predicted PBC (kN)",
+    height=460,
+    margin=dict(l=10, r=10, t=30, b=10),
+)
+st.plotly_chart(fig, use_container_width=True)
+
+with st.expander("View training data"):
+    st.dataframe(df, use_container_width=True)
