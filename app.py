@@ -375,3 +375,43 @@ DATA_CSV = """diameter,length,ram_weight,drop_height,pbc
 282,10,15,0.7,980
 282,11,15,0.7,1040
 """
+
+
+st.markdown("""<style>html, body, [class*="css"] { font-family: 'Times New Roman', Times, serif; }</style>""", unsafe_allow_html=True)
+
+@st.cache_resource
+def load_model():
+  df = pd.read_csv(io.StringIO(DATA_CSV))
+  X = df[FEATURE_COLS]
+  y = df["pbc"]
+  scaler = StandardScaler()
+  X_scaled = scaler.fit_transform(X)
+  model = xgb.XGBRegressor(objective="reg:squarederror", n_estimators=300, learning_rate=0.01, max_depth=8, verbosity=0)
+  model.fit(X_scaled, y)
+  return df, X, scaler, model
+
+try:
+  df, X, scaler, model = load_model()
+except Exception as e:
+  st.error("Model training failed.")
+  st.exception(e)
+  st.stop()
+
+st.title("Pile Bearing Capacity Predictor")
+st.markdown("Enter the pile parameters below to predict the bearing capacity.")
+col1, col2 = st.columns(2)
+inputs = {}
+for i, (feature, col) in enumerate(zip(FEATURES, FEATURE_COLS)):
+  target_col = col1 if i % 2 == 0 else col2
+  inputs[col] = target_col.number_input(feature, value=float(X[col].mean()))
+
+if st.button("Predict"):
+  input_df = pd.DataFrame([inputs])[FEATURE_COLS]
+  input_scaled = scaler.transform(input_df)
+  prediction = model.predict(input_scaled)[0]
+  st.success(f"Predicted Pile Bearing Capacity: {prediction:.2f} kN")
+  st.subheader("Model Performance")
+  st.json(TRAIN_METRICS)
+
+
+
