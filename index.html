@@ -47,8 +47,8 @@ th { background:#eef2f7; }
 <div class="metrics-title">Model Performance</div>
 <table>
 <tr><th>Metric</th><th>Value</th></tr>
-<tr><td>R2 (in-browser, hold-out)</td><td id="m_r2">-</td></tr>
-<tr><td>R (in-browser, hold-out)</td><td id="m_r">-</td></tr>
+<tr><td>R^2 </td><td id="m_r2">-</td></tr>
+<tr><td>R </td><td id="m_r">-</td></tr>
 <tr><td>MAPE (%)</td><td id="m_mape">-</td></tr>
 <tr><td>RMSE (kN)</td><td id="m_rmse">-</td></tr>
 <tr><td>MAE (kN)</td><td id="m_mae">-</td></tr>
@@ -176,7 +176,7 @@ document.getElementById("m_rmse").textContent=m.rmse.toFixed(2);
 document.getElementById("m_mae").textContent=m.mae.toFixed(2);
 trainGBT(ALL);
 var st=document.getElementById("status");
-st.textContent="Model trained on "+ALL.length+" records ("+MODEL.trees.length+" boosted trees). Ready.";
+st.textContent="Model trained on 359 dataset.";
 document.getElementById("predictBtn").disabled=false;
 }
 
